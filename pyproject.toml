@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "matrixsh"
+version = "0.3.0"
+description = "MatrixShell: AI-augmented shell wrapper powered by MatrixLLM"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+  "requests>=2.31.0",
+  "rich>=13.7.0"
+]
+
+[project.scripts]
+matrixsh = "matrixsh.cli:main"

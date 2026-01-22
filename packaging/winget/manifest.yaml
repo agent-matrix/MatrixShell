@@ -1,0 +1,49 @@
+
+# Winget manifest TEMPLATE (fill in publisher/urls/hash)
+
+# Docs: [https://learn.microsoft.com/windows/package-manager/winget/](https://learn.microsoft.com/windows/package-manager/winget/)
+
+PackageIdentifier: MatrixLLM.MatrixShell
+PackageVersion: 0.3.0
+PackageName: MatrixShell
+Publisher: MatrixLLM
+License: MIT
+ShortDescription: AI-augmented shell wrapper powered by MatrixLLM
+Installers:
+
+* Architecture: x64
+  InstallerType: exe
+  InstallerUrl: [https://example.com/matrixsh-0.3.0-win-x64.exe](https://example.com/matrixsh-0.3.0-win-x64.exe)
+  InstallerSha256: PUT_SHA256_HERE
+  EOF
+
+# -----------------------------------------------------------------------------
+
+# packaging/homebrew/matrixsh.rb (template)
+
+# -----------------------------------------------------------------------------
+
+cat > "$PROJECT_ROOT/packaging/homebrew/matrixsh.rb" <<'EOF'
+
+# Homebrew formula TEMPLATE
+
+# To publish: create a tap repo and place this formula there
+
+class Matrixsh < Formula
+desc "MatrixShell: AI-augmented shell wrapper powered by MatrixLLM"
+homepage "[https://example.com](https://example.com)"
+url "[https://example.com/matrixsh-0.3.0.tar.gz](https://example.com/matrixsh-0.3.0.tar.gz)"
+sha256 "PUT_SHA256_HERE"
+license "MIT"
+
+depends_on "python@3.11"
+
+def install
+system "python3", "-m", "pip", "install", ".", "--prefix", prefix
+bin.install_symlink prefix/"bin/matrixsh"
+end
+
+test do
+system "#{bin}/matrixsh", "--help"
+end
+end
