@@ -280,3 +280,23 @@ else
 	@rm -rf $(VENV_DIR)
 	@echo "$(OK) removed .venv"
 endif
+
+# -----------------------------
+# Demo
+# -----------------------------
+.PHONY: demo demo-record
+demo:
+ifeq ($(IS_WINDOWS),1)
+	@echo "Running fake terminal demo..."
+	@bash demo/fake_terminal_demo.sh
+else
+	@echo "Running fake terminal demo..."
+	@bash demo/fake_terminal_demo.sh
+endif
+
+demo-record:
+ifeq ($(IS_WINDOWS),1)
+	@echo "$(WARN) demo-record requires asciinema (Unix-like systems)"
+else
+	@bash demo/record_asciinema.sh
+endif

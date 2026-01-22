@@ -1,14 +1,16 @@
-# matrixsh_project/src/matrixsh/llm.py
-
 from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from typing import Dict, Iterator, Literal
+from typing import Dict, Iterator, Literal, Optional
 
 import requests
 
 Risk = Literal["low", "medium", "high"]
+
+
+class UnauthorizedError(RuntimeError):
+    pass
 
 
 @dataclass
@@ -19,22 +21,23 @@ class Suggestion:
 
 
 class MatrixLLM:
-    def __init__(self, base_url: str, api_key: str, timeout_s: int = 120):
+    def __init__(self, base_url: str, api_key: str, token: str = "", timeout_s: int = 120):
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
+        self.token = token
         self.timeout_s = timeout_s
 
     def _headers(self) -> Dict[str, str]:
         h: Dict[str, str] = {"Content-Type": "application/json"}
-        if self.api_key:
-            h["Authorization"] = f"Bearer {self.api_key}"
+
+        # Prefer pairing token if present
+        cred = (self.token or "").strip() or (self.api_key or "").strip()
+        if cred:
+            h["Authorization"] = f"Bearer {cred}"
+
         return h
 
     def health(self) -> bool:
-        """
-        Checks the MatrixLLM gateway health endpoint.
-        Uses <base_url_without_/v1>/health (e.g. http://localhost:11435/health).
-        """
         try:
             url = self.base_url.replace("/v1", "") + "/health"
             r = requests.get(url, timeout=8)
@@ -51,13 +54,19 @@ class MatrixLLM:
             timeout=self.timeout_s if not stream else None,
             stream=stream,
         )
+
+        if r.status_code == 401:
+            raise UnauthorizedError(
+                "Unauthorized (401). MatrixLLM requires credentials.\n"
+                "Fix options:\n"
+                "  - If local: run `matrixsh setup` to start/pair automatically\n"
+                "  - Or set API key: matrixsh install --key \"sk-...\"\n"
+            )
+
         r.raise_for_status()
         return r
 
     def chat_text(self, *, model: str, messages: list[dict], temperature: float = 0.2) -> str:
-        """
-        Non-streaming OpenAI-compatible chat completion.
-        """
         payload = {
             "model": model,
             "messages": messages,
@@ -69,13 +78,6 @@ class MatrixLLM:
         return data["choices"][0]["message"]["content"]
 
     def chat_stream(self, *, model: str, messages: list[dict], temperature: float = 0.2) -> Iterator[str]:
-        """
-        Streaming OpenAI-compatible chat completion (SSE).
-        Expected lines:
-          data: {"choices":[{"delta":{"content":"..."}}]}
-          data: [DONE]
-        Yields incremental content chunks.
-        """
         payload = {
             "model": model,
             "messages": messages,
@@ -105,7 +107,6 @@ class MatrixLLM:
                 if chunk:
                     yield chunk
             except Exception:
-                # ignore malformed partial chunks
                 continue
 
     def suggest(
@@ -118,10 +119,6 @@ class MatrixLLM:
         files: list[str],
         user_input: str,
     ) -> Suggestion:
-        """
-        Ask the model for a structured JSON response:
-          { "explanation": "...", "command": "...", "risk": "low|medium|high" }
-        """
         system = (
             "You are a terminal assistant.\n"
             "Return ONLY valid JSON with keys: explanation, command, risk.\n"

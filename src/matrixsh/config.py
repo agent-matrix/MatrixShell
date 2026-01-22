@@ -1,5 +1,3 @@
-# matrixsh_project/src/matrixsh/config.py
-
 from __future__ import annotations
 
 import json
@@ -30,7 +28,8 @@ def config_path() -> Path:
 @dataclass
 class Settings:
     base_url: str = "http://localhost:11435/v1"
-    api_key: str = ""
+    api_key: str = ""     # classic MatrixLLM key (sk-...)
+    token: str = ""       # pairing token (mtx_...)
     model: str = "deepseek-r1"
     timeout_s: int = 120
 
@@ -48,6 +47,7 @@ class Settings:
         s = Settings(
             base_url=str(data.get("base_url", Settings.base_url)),
             api_key=str(data.get("api_key", Settings.api_key)),
+            token=str(data.get("token", Settings.token)),
             model=str(data.get("model", Settings.model)),
             timeout_s=int(data.get("timeout_s", Settings.timeout_s)),
         )
@@ -55,6 +55,7 @@ class Settings:
         # Environment overrides (highest priority)
         s.base_url = os.environ.get("MATRIXLLM_BASE_URL", os.environ.get("MATRIXSH_BASE_URL", s.base_url))
         s.api_key = os.environ.get("MATRIXLLM_API_KEY", os.environ.get("MATRIXSH_API_KEY", s.api_key))
+        s.token = os.environ.get("MATRIXSH_TOKEN", s.token)
         s.model = os.environ.get("MATRIXLLM_MODEL", os.environ.get("MATRIXSH_MODEL", s.model))
 
         return s
@@ -66,6 +67,7 @@ class Settings:
         payload = {
             "base_url": self.base_url,
             "api_key": self.api_key,
+            "token": self.token,
             "model": self.model,
             "timeout_s": self.timeout_s,
         }
