@@ -1,0 +1,75 @@
+# =============================================================================
+# MatrixShell PowerShell Demo Transcript
+# =============================================================================
+# This is a sample transcript showing MatrixShell on Windows PowerShell.
+# Use this for documentation or as a reference for what users will see.
+# =============================================================================
+
+PS C:\Users\rusla\projects> matrixsh
+
+╭────────────────────────────────────────── matrixsh ──────────────────────────────────────────╮
+│ MatrixShell (powered by MatrixLLM)                                                           │
+│ OS: Windows  |  Mode: powershell                                                             │
+│ Gateway: http://localhost:11435/v1                                                           │
+│ Model: deepseek-r1                                                                           │
+│                                                                                              │
+│ Tips                                                                                         │
+│  - Type normal commands as usual.                                                            │
+│  - If you type natural language OR an unknown command, MatrixShell will ask MatrixLLM.       │
+│  - Use /exit to quit.                                                                        │
+╰──────────────────────────────────────────────────────────────────────────────────────────────╯
+
+C:\Users\rusla\projects> dir
+
+    Directory: C:\Users\rusla\projects
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+d-----        01/15/2025   2:30 PM                MatrixShell
+d-----        01/10/2025  10:15 AM                old-project
+-a----        01/15/2025   3:00 PM           1234 README.md
+
+C:\Users\rusla\projects> come posso cancellare questa cartella
+
+╭─────────────────────────────────────── MatrixLLM ───────────────────────────────────────────╮
+│ Per cancellare la cartella "old-project" in PowerShell, usa questo comando:                 │
+│                                                                                             │
+│     Remove-Item -Recurse -Force "old-project"                                               │
+│                                                                                             │
+│ Attenzione: Questo eliminerà tutti i file nella cartella definitivamente.                   │
+╰─────────────────────────────────────────────────────────────────────────────────────────────╯
+
+Suggested command:
+Remove-Item -Recurse -Force "old-project"
+Risk: high
+
+Execute it? (yes/no) no
+Cancelled.
+
+C:\Users\rusla\projects> how can I see running processes using the most memory
+
+╭─────────────────────────────────────── MatrixLLM ───────────────────────────────────────────╮
+│ To see processes sorted by memory usage in PowerShell, use Get-Process with sorting:        │
+╰─────────────────────────────────────────────────────────────────────────────────────────────╯
+
+Suggested command:
+Get-Process | Sort-Object -Property WorkingSet64 -Descending | Select-Object -First 10 Name, @{N='Memory(MB)';E={[math]::Round($_.WorkingSet64/1MB,2)}}
+Risk: low
+
+Execute it? (yes/no) yes
+
+Name                    Memory(MB)
+----                    ----------
+chrome                      1234.56
+Code                         890.12
+Teams                        567.89
+explorer                     234.56
+matrixllm                    123.45
+...
+
+Done.
+
+C:\Users\rusla\projects> /exit
+Bye.
+
+PS C:\Users\rusla\projects>
