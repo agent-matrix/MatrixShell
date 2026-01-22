@@ -54,14 +54,3 @@ matrixsh --stream
 * MATRIXLLM_BASE_URL (default [http://localhost:11435/v1](http://localhost:11435/v1))
 * MATRIXLLM_API_KEY
 * MATRIXLLM_MODEL
-  EOF
-
-# -----------------------------------------------------------------------------
-
-# src/matrixsh/**init**.py
-
-# -----------------------------------------------------------------------------
-
-cat > "$PROJECT_ROOT/src/matrixsh/**init**.py" <<'EOF'
-**all** = ["**version**"]
-**version** = "0.3.0"
