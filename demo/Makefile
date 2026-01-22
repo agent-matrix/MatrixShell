@@ -10,6 +10,11 @@
 #   make clean         - Remove generated files
 # =============================================================================
 
+# Optimization settings
+GIF_FPS := 10
+GIF_SPEED := 2
+GIF_THEME := monokai
+
 .PHONY: demo record gif clean help
 
 # Default target
@@ -20,7 +25,7 @@ help:
 	@echo "Targets:"
 	@echo "  make demo     - Run fake terminal demo (no MatrixLLM needed)"
 	@echo "  make record   - Record real demo with asciinema"
-	@echo "  make gif      - Convert asciinema recording to GIF"
+	@echo "  make gif      - Convert to GIF (Optimized: $(GIF_FPS)fps @ $(GIF_SPEED)x speed)"
 	@echo "  make clean    - Remove generated files"
 	@echo ""
 
@@ -34,29 +39,49 @@ record:
 	@echo "Starting asciinema recording..."
 	@bash record_asciinema.sh
 
-# Convert asciinema recording to GIF (requires agg)
+# Convert asciinema recording to GIF
+# 1. Installs agg (if missing)
+# 2. Downloads JetBrains Mono font locally (if missing)
+# 3. Renders with optimized FPS and Speed settings
 gif: matrixsh-demo.cast
-	@if command -v agg >/dev/null 2>&1; then \
-		echo "Converting to GIF..."; \
-		agg matrixsh-demo.cast matrixsh-demo.gif \
-			--font-size 14 \
-			--font-family "JetBrains Mono,Menlo,Monaco,monospace" \
-			--theme monokai; \
-		echo "Created: matrixsh-demo.gif"; \
-	else \
-		echo "Error: agg not found."; \
-		echo "Install it with: cargo install agg"; \
-		exit 1; \
+	@echo "Checking for agg (asciinema gif generator)..."
+	@if ! command -v agg >/dev/null 2>&1; then \
+		echo "⚠️  agg not found."; \
+		if command -v cargo >/dev/null 2>&1; then \
+			echo "📦 Cargo found. Installing agg automatically from GitHub..."; \
+			cargo install --git https://github.com/asciinema/agg; \
+		else \
+			echo "❌ Error: Neither 'agg' nor 'cargo' (Rust) found."; \
+			echo "👉 Please install Rust to auto-fix: https://rustup.rs/"; \
+			exit 1; \
+		fi \
 	fi
+	@echo "Checking for local fonts..."
+	@mkdir -p .fonts
+	@if [ ! -f .fonts/JetBrainsMono-Regular.ttf ]; then \
+		echo "⬇️  Downloading JetBrains Mono font for renderer..."; \
+		wget -q -O .fonts/JetBrainsMono-Regular.ttf https://raw.githubusercontent.com/JetBrains/JetBrainsMono/master/fonts/ttf/JetBrainsMono-Regular.ttf; \
+	fi
+	@echo "🎥 Converting to GIF (FPS Cap: $(GIF_FPS), Speed: $(GIF_SPEED)x)..."
+	@# We add ~/.cargo/bin to PATH temporarily and point agg to local fonts
+	@PATH="$$HOME/.cargo/bin:$$PATH" agg matrixsh-demo.cast matrixsh-demo.gif \
+		--font-dir .fonts \
+		--font-family "JetBrains Mono" \
+		--font-size 14 \
+		--theme $(GIF_THEME) \
+		--fps-cap $(GIF_FPS) \
+		--speed $(GIF_SPEED)
+	@echo "✅ Created: matrixsh-demo.gif"
 
-# Clean generated files
+# Clean generated files and local fonts
 clean:
 	@echo "Cleaning generated files..."
 	@rm -f matrixsh-demo.cast matrixsh-demo.gif
+	@rm -rf .fonts
 	@echo "Done."
 
 # Check that cast file exists for gif target
 matrixsh-demo.cast:
-	@echo "Error: matrixsh-demo.cast not found."
-	@echo "Run 'make record' first to create a recording."
+	@echo "❌ Error: matrixsh-demo.cast not found."
+	@echo "👉 Run 'make record' first to create a recording."
 	@exit 1

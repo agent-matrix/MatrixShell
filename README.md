@@ -44,6 +44,9 @@ Risk: high
 Execute it? (yes/no)
 ```
 
+
+![MatrixShell Demo](demo/matrixsh-demo.gif)
+
 ---
 
 ## Features
