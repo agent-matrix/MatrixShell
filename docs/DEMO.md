@@ -292,3 +292,5 @@ TERM=xterm-256color asciinema rec demo.cast
 Either:
 - Start MatrixLLM first: `matrixllm start --auth pairing ...`
 - Or let MatrixShell start it: answer "Y" when prompted
+
+

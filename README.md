@@ -22,6 +22,8 @@
   <img src="https://img.shields.io/badge/license-Apache%202.0-green.svg" alt="License">
 </p>
 
+![MatrixShell Demo](demo/matrixsh-demo.gif)
+
 ---
 
 Type normal commands as usual.
@@ -44,8 +46,6 @@ Risk: high
 Execute it? (yes/no)
 ```
 
-
-![MatrixShell Demo](demo/matrixsh-demo.gif)
 
 ---
 
@@ -517,21 +517,60 @@ In most WSL2 setups, `localhost` works. If not:
 
 ---
 
-## Demo
+### 🚀 Quick Start Demo
 
-Run the fake terminal demo:
+Follow these steps to start the AI gateway and run your first natural language command.
 
-```bash
-make demo
-```
+#### 1. Start the Local AI Gateway
 
-Or record a real demo with asciinema:
+First, launch the **MatrixLLM** backend. This starts the server in pairing mode on your local machine using the `deepseek-r` model.
 
 ```bash
-bash demo/record_asciinema.sh
+matrixllm start --auth pairing --host 127.0.0.1 --port 11435 --model deepseek-r
+
+```
+![](docs/assets/2026-01-23-20-59-31.png)
+
+#### 2. Configure the Shell
+
+Open a **new terminal window** (keep the previous one running). Run the setup command to pair the shell with the gateway using the code displayed in step 1.
+
+```bash
+matrixsh setup
+
 ```
 
-See [docs/DEMO.md](docs/DEMO.md) for detailed instructions.
+#### 3. Launch MatrixShell
+
+Once setup is complete, enter the interactive shell environment.
+
+```bash
+matrixsh
+
+```
+![](docs/assets/2026-01-23-21-01-43.png)
+#### 4. Execute a Natural Language Command
+
+Type your request in plain language. For example, to delete a folder named "trash":
+
+**User Input:**
+
+> how to cancel the folder trash
+
+**MatrixShell Response:**
+The AI proposes the correct command (`rm -rf trash`) and waits for your confirmation.
+
+```text
+Risk: High
+Execute it? (yes/no) yes
+
+```
+
+**Result:**
+The command is executed safely.
+
+
+![](docs/assets/2026-01-23-21-04-17.png)
 
 ---
 
