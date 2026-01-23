@@ -99,6 +99,7 @@ help:
 	@echo "  install-cli       pipx install . (end-user)."
 	@echo ""
 	@echo "Build / Packaging:"
+	@echo "  build             Build wheel and sdist (python -m build)."
 	@echo "  build-exe         Windows: build dist\\matrixsh.exe using PyInstaller."
 	@echo "  build-linux       Linux: build .deb/.rpm using packaging/linux/build_linux_packages.sh (fpm)."
 	@echo ""
@@ -199,6 +200,22 @@ else
 	fi
 endif
 	@echo "$(OK) dev tools installed"
+
+# -----------------------------
+# Build wheel and sdist
+# -----------------------------
+.PHONY: build
+build: install-dev
+ifeq ($(IS_WINDOWS),1)
+	@echo "Building wheel and sdist..."
+	@$(VENV_PY) -m build
+	@echo $(OK) Built: dist/*.whl dist/*.tar.gz
+else
+	@echo "Building wheel and sdist..."
+	@$(VENV_PY) -m build
+	@echo "$(OK) Built: dist/*.whl dist/*.tar.gz"
+	@ls -la dist/
+endif
 
 # -----------------------------
 # Run

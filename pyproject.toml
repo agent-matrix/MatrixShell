@@ -7,11 +7,57 @@ name = "matrixsh"
 version = "0.1.0"
 description = "MatrixShell: AI-augmented shell wrapper powered by MatrixLLM"
 readme = "README.md"
+license = "Apache-2.0"
 requires-python = ">=3.9"
+authors = [
+  { name = "Ruslan Magana Vsevolodovna", email = "contact@ruslanmv.com" }
+]
+maintainers = [
+  { name = "Ruslan Magana Vsevolodovna", email = "contact@ruslanmv.com" }
+]
+keywords = [
+  "shell",
+  "terminal",
+  "ai",
+  "llm",
+  "cli",
+  "matrix",
+  "assistant"
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Intended Audience :: System Administrators",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: System :: Shells",
+  "Topic :: Terminals",
+  "Topic :: Utilities",
+  "Typing :: Typed"
+]
 dependencies = [
   "requests>=2.31.0",
   "rich>=13.7.0"
 ]
 
+[project.urls]
+Homepage = "https://github.com/agent-matrix/MatrixShell"
+Documentation = "https://github.com/agent-matrix/MatrixShell#readme"
+Repository = "https://github.com/agent-matrix/MatrixShell.git"
+Issues = "https://github.com/agent-matrix/MatrixShell/issues"
+Changelog = "https://github.com/agent-matrix/MatrixShell/releases"
+
 [project.scripts]
 matrixsh = "matrixsh.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+matrixsh = ["py.typed"]
