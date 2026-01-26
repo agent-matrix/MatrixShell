@@ -93,6 +93,7 @@ help:
 	@echo "  venv              Create .venv (uv venv preferred)."
 	@echo "  install           Install editable into .venv (uv pip preferred)."
 	@echo "  install-dev       Install dev tools (pyinstaller/build/twine)."
+	@echo "  test              Run pytest test suite."
 	@echo "  run               Run matrixsh from .venv."
 	@echo ""
 	@echo "User install:"
@@ -269,6 +270,34 @@ else
 		exit 1; \
 	fi
 endif
+
+# -----------------------------
+# Clean
+# -----------------------------
+# -----------------------------
+# Test
+# -----------------------------
+.PHONY: test
+test: install
+ifeq ($(IS_WINDOWS),1)
+	@echo "Running tests..."
+	@if "$(HAVE_UV)"=="1" ( \
+		$(UV) pip install -e ".[dev]" && \
+		$(VENV_PY) -m pytest tests/ -v \
+	) else ( \
+		$(VENV_PY) -m pip install -e ".[dev]" && \
+		$(VENV_PY) -m pytest tests/ -v \
+	)
+else
+	@echo "Running tests..."
+	@if [ "$(HAVE_UV)" = "1" ]; then \
+		$(UV) pip install -e ".[dev]"; \
+	else \
+		$(VENV_PY) -m pip install -e ".[dev]"; \
+	fi
+	@$(VENV_PY) -m pytest tests/ -v
+endif
+	@echo "$(OK) tests passed"
 
 # -----------------------------
 # Clean
