@@ -14,6 +14,7 @@
 #   make venv             (uv venv / python -m venv)
 #   make install          (uv pip install -e . / pip install -e .)
 #   make install-dev      (adds dev tools like pyinstaller)
+#   make test
 #   make run
 #   make build-exe        (Windows PyInstaller onefile exe)
 #   make build-linux      (Linux deb/rpm via fpm helper script)
@@ -37,6 +38,7 @@ UV ?= uv
 PYTHON ?= python
 PYTHON3 ?= python3
 PIPX ?= pipx
+CURL ?= curl
 
 # Choose python executable
 ifeq ($(IS_WINDOWS),1)
@@ -125,9 +127,43 @@ ifeq ($(IS_WINDOWS),1)
 else
 	@echo "Installing uv on Unix-like (best effort)..."
 	@echo "If this fails, install uv manually: https://astral.sh/uv"
-	@curl -LsSf https://astral.sh/uv/install.sh | sh || (echo "$(WARN) uv install failed"; exit 0)
+	@$(CURL) -LsSf https://astral.sh/uv/install.sh | sh || (echo "$(WARN) uv install failed"; exit 0)
 endif
 	@echo "$(OK) uv install attempted. Restart your shell if needed."
+
+# -----------------------------
+# Ensure pip exists inside venv (fixes: "No module named pip")
+# -----------------------------
+.PHONY: ensure-pip
+ensure-pip:
+ifeq ($(IS_WINDOWS),1)
+	@echo "Ensuring pip is available in venv..."
+	@$(VENV_PY) -c "import pip" >NUL 2>&1 || ( \
+		echo "pip missing; bootstrapping with ensurepip..." && \
+		$(VENV_PY) -m ensurepip --upgrade >NUL 2>&1 \
+	)
+	@$(VENV_PY) -c "import pip" >NUL 2>&1 || ( \
+		echo "$(WARN) ensurepip failed; trying get-pip.py..." && \
+		powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://bootstrap.pypa.io/get-pip.py -OutFile get-pip.py" && \
+		$(VENV_PY) get-pip.py && \
+		del get-pip.py \
+	)
+	@$(VENV_PY) -m pip --version >NUL 2>&1 || (echo "$(WARN) pip still missing in venv"; exit /b 1)
+else
+	@echo "Ensuring pip is available in venv..."
+	@$(VENV_PY) -c "import pip" >/dev/null 2>&1 || ( \
+		echo "pip missing; bootstrapping with ensurepip..." && \
+		$(VENV_PY) -m ensurepip --upgrade >/dev/null 2>&1 || true; \
+	)
+	@$(VENV_PY) -c "import pip" >/dev/null 2>&1 || ( \
+		echo "$(WARN) ensurepip failed; trying get-pip.py..." && \
+		$(CURL) -LsSf https://bootstrap.pypa.io/get-pip.py -o /tmp/get-pip.py && \
+		$(VENV_PY) /tmp/get-pip.py && \
+		rm -f /tmp/get-pip.py; \
+	)
+	@$(VENV_PY) -m pip --version >/dev/null 2>&1 || (echo "$(WARN) pip still missing in venv"; exit 1)
+endif
+	@echo "$(OK) pip is available"
 
 # -----------------------------
 # Virtualenv
@@ -144,6 +180,7 @@ ifeq ($(IS_WINDOWS),1)
 			$(PY) -m venv "$(VENV_DIR)" \
 		) \
 	)
+	@$(MAKE) ensure-pip
 	@$(VENV_PY) -m pip install -U pip setuptools wheel
 else
 	@if [ -x "$(VENV_PY)" ]; then echo "$(OK) venv exists"; else \
@@ -155,6 +192,7 @@ else
 			$(PY) -m venv "$(VENV_DIR)"; \
 		fi; \
 	fi
+	@$(MAKE) ensure-pip
 	@$(VENV_PY) -m pip install -U pip setuptools wheel
 endif
 
@@ -271,9 +309,6 @@ else
 	fi
 endif
 
-# -----------------------------
-# Clean
-# -----------------------------
 # -----------------------------
 # Test
 # -----------------------------
