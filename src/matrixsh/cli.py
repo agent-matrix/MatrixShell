@@ -71,6 +71,49 @@ def _pair_flow(settings: Settings, pairing_code_hint: str | None = None) -> bool
     return True
 
 
+def run_login(url: str | None, token: str | None) -> int:
+    """
+    Login to Context Forge and save credentials.
+    """
+    s = Settings.load()
+
+    if url:
+        s.context_forge_url = url.rstrip("/")
+    if token:
+        s.context_forge_token = token
+
+    if not s.context_forge_url:
+        console.print("[red]Context Forge URL is required.[/red]")
+        console.print("Use: matrixsh login --url http://localhost:4444 --token YOUR_TOKEN")
+        console.print("Or set CONTEXT_FORGE_URL in your .env file.")
+        return 2
+
+    if not s.context_forge_token:
+        console.print("[red]Context Forge token is required.[/red]")
+        console.print("Use: matrixsh login --url http://localhost:4444 --token YOUR_TOKEN")
+        console.print("Or set CONTEXT_FORGE_TOKEN in your .env file.")
+        return 2
+
+    # Optionally verify the token by making a test request
+    try:
+        import requests
+        health_url = f"{s.context_forge_url}/health"
+        r = requests.get(health_url, timeout=5)
+        if r.status_code == 200:
+            console.print(f"[green]Context Forge is reachable at {s.context_forge_url}[/green]")
+        else:
+            console.print(f"[yellow]Warning: Context Forge health check returned {r.status_code}[/yellow]")
+    except Exception as e:
+        console.print(f"[yellow]Warning: Could not reach Context Forge: {e}[/yellow]")
+        console.print("Credentials will be saved anyway.")
+
+    s.save()
+    console.print("[green]Context Forge credentials saved.[/green]")
+    console.print(f"URL: {s.context_forge_url}")
+    console.print("Token: ****" + s.context_forge_token[-4:] if len(s.context_forge_token) > 4 else "****")
+    return 0
+
+
 def run_setup(url: str | None, model: str | None, port: int | None) -> int:
     """
     Consumer-friendly setup:
@@ -151,6 +194,10 @@ def main() -> None:
     p_setup.add_argument("--model", help="Default model name")
     p_setup.add_argument("--port", type=int, help="Port to run MatrixLLM on (default 11435)")
 
+    p_login = sub.add_parser("login", help="Login to Context Forge and save credentials")
+    p_login.add_argument("--url", help="Context Forge URL (e.g. http://localhost:4444)")
+    p_login.add_argument("--token", help="Context Forge token")
+
     parser.add_argument("--mode", choices=["auto", "cmd", "powershell", "bash"], default="auto", help="Shell mode")
     parser.add_argument("--url", help="MatrixLLM base URL override")
     parser.add_argument("--model", help="Model override")
@@ -165,6 +212,9 @@ def main() -> None:
 
     if args.subcmd == "setup":
         raise SystemExit(run_setup(args.url, args.model, args.port))
+
+    if args.subcmd == "login":
+        raise SystemExit(run_login(args.url, args.token))
 
     settings = Settings.load()
     if args.url:

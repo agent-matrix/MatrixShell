@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
+from .env import load_env_files
 from .urls import api_base_url
 
 APP = "matrixsh"
@@ -34,10 +35,18 @@ class Settings:
     token: str = ""       # pairing token (mtx_...)
     model: str = "deepseek-r1"
     timeout_s: int = 120
+    # Context Forge settings
+    context_forge_url: str = ""
+    context_forge_token: str = ""
 
     @staticmethod
     def load(path: Optional[Path] = None) -> "Settings":
         path = path or config_path()
+
+        # Load .env files before reading environment variables
+        # Priority: config dir .env < current dir .env < existing env vars
+        load_env_files(config_dir())
+
         data: dict = {}
 
         if path.exists():
@@ -52,6 +61,8 @@ class Settings:
             token=str(data.get("token", Settings.token)),
             model=str(data.get("model", Settings.model)),
             timeout_s=int(data.get("timeout_s", Settings.timeout_s)),
+            context_forge_url=str(data.get("context_forge_url", Settings.context_forge_url)),
+            context_forge_token=str(data.get("context_forge_token", Settings.context_forge_token)),
         )
 
         # Environment overrides (highest priority)
@@ -59,6 +70,10 @@ class Settings:
         s.api_key = os.environ.get("MATRIXLLM_API_KEY", os.environ.get("MATRIXSH_API_KEY", s.api_key))
         s.token = os.environ.get("MATRIXSH_TOKEN", s.token)
         s.model = os.environ.get("MATRIXLLM_MODEL", os.environ.get("MATRIXSH_MODEL", s.model))
+
+        # Context Forge environment overrides
+        s.context_forge_url = os.environ.get("CONTEXT_FORGE_URL", s.context_forge_url)
+        s.context_forge_token = os.environ.get("CONTEXT_FORGE_TOKEN", s.context_forge_token)
 
         # Normalize to OpenAI-compatible base URL that ends with /v1
         s.base_url = api_base_url(s.base_url)
@@ -75,6 +90,8 @@ class Settings:
             "token": self.token,
             "model": self.model,
             "timeout_s": self.timeout_s,
+            "context_forge_url": self.context_forge_url,
+            "context_forge_token": self.context_forge_token,
         }
         path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
         return path
