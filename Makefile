@@ -103,6 +103,12 @@ help:
 	@echo "  build-exe         Windows: build dist\\matrixsh.exe using PyInstaller."
 	@echo "  build-linux       Linux: build .deb/.rpm using packaging/linux/build_linux_packages.sh (fpm)."
 	@echo ""
+	@echo "MCP Server:"
+	@echo "  mcp-server-http   Start MCP server with SSE support (port 9000)."
+	@echo "  mcp-check         Check if MCP server is running."
+	@echo "  mcp-register      Register MCP server with Context Forge."
+	@echo "                    (Auto-starts server if not running)"
+	@echo ""
 	@echo "Housekeeping:"
 	@echo "  clean             Remove build artifacts."
 	@echo "  clean-all         Also remove .venv."
@@ -296,6 +302,114 @@ ifeq ($(IS_WINDOWS),1)
 else
 	@rm -rf $(VENV_DIR)
 	@echo "$(OK) removed .venv"
+endif
+
+# -----------------------------
+# MCP Server Configuration
+# -----------------------------
+MCP_HOST ?= 127.0.0.1
+MCP_PORT ?= 9000
+MCP_URL := http://$(MCP_HOST):$(MCP_PORT)
+MCP_SSE_URL := $(MCP_URL)/mcp/sse
+
+# -----------------------------
+# MCP Server (HTTP/SSE)
+# -----------------------------
+.PHONY: mcp-server-http
+mcp-server-http: install
+ifeq ($(IS_WINDOWS),1)
+	@echo "Starting MCP Server (HTTP/SSE) on $(MCP_URL)..."
+	@$(VENV_PY) -m matrixsh.mcp_server --host $(MCP_HOST) --port $(MCP_PORT)
+else
+	@echo "╔═══════════════════════════════════════════════════════════════╗"
+	@echo "║           Starting MatrixShell MCP Server (HTTP/SSE)          ║"
+	@echo "╚═══════════════════════════════════════════════════════════════╝"
+	@echo ""
+	@echo "MCP Server URL: $(MCP_SSE_URL)"
+	@echo ""
+	@$(VENV_PY) -m matrixsh.mcp_server --host $(MCP_HOST) --port $(MCP_PORT)
+endif
+
+# Helper to check if MCP server is running
+.PHONY: mcp-check
+mcp-check:
+ifeq ($(IS_WINDOWS),1)
+	@curl -s --max-time 2 $(MCP_URL)/health >NUL 2>&1 && echo $(OK) MCP server is running || (echo $(WARN) MCP server not running && exit /b 1)
+else
+	@curl -s --max-time 2 $(MCP_URL)/health >/dev/null 2>&1 && echo "$(OK) MCP server is running at $(MCP_URL)" || (echo "$(WARN) MCP server not running at $(MCP_URL)" && exit 1)
+endif
+
+# Helper to start MCP server in background if not running
+.PHONY: mcp-ensure-running
+mcp-ensure-running: install
+ifeq ($(IS_WINDOWS),1)
+	@curl -s --max-time 2 $(MCP_URL)/health >NUL 2>&1 || ( \
+		echo "Starting MCP server in background..." && \
+		start /B $(VENV_PY) -m matrixsh.mcp_server --host $(MCP_HOST) --port $(MCP_PORT) && \
+		timeout /t 3 >NUL \
+	)
+else
+	@if ! curl -s --max-time 2 $(MCP_URL)/health >/dev/null 2>&1; then \
+		echo "MCP server not running. Starting in background..."; \
+		$(VENV_PY) -m matrixsh.mcp_server --host $(MCP_HOST) --port $(MCP_PORT) & \
+		echo "Waiting for MCP server to start..."; \
+		sleep 3; \
+		if ! curl -s --max-time 2 $(MCP_URL)/health >/dev/null 2>&1; then \
+			echo "$(WARN) MCP server failed to start. Check logs."; \
+			exit 1; \
+		fi; \
+		echo "$(OK) MCP server started successfully"; \
+	else \
+		echo "$(OK) MCP server already running at $(MCP_URL)"; \
+	fi
+endif
+
+# -----------------------------
+# MCP Registration to Context Forge
+# -----------------------------
+.PHONY: mcp-register
+mcp-register: install
+ifeq ($(IS_WINDOWS),1)
+	@echo "Registering MatrixShell MCP Server to Context Forge..."
+	@echo "MCP Server URL: $(MCP_SSE_URL)"
+	@echo "Checking if MCP server is running..."
+	@curl -s --max-time 2 $(MCP_URL)/health >NUL 2>&1 || ( \
+		echo "MCP server not running. Starting it first..." && \
+		start /B $(VENV_PY) -m matrixsh.mcp_server --host $(MCP_HOST) --port $(MCP_PORT) && \
+		timeout /t 3 >NUL \
+	)
+	@curl -s --max-time 2 $(MCP_URL)/health >NUL 2>&1 || (echo "Error: MCP server failed to start" && exit /b 1)
+	@echo $(OK) MCP server is running
+	@$(VENV_PY) -m matrixsh.mcp_register --url $(MCP_SSE_URL)
+else
+	@echo "╔═══════════════════════════════════════════════════════════════╗"
+	@echo "║     Registering MatrixShell MCP Server to Context Forge       ║"
+	@echo "╚═══════════════════════════════════════════════════════════════╝"
+	@echo ""
+	@echo "MCP Server URL: $(MCP_SSE_URL)"
+	@echo ""
+	@echo "Checking if MCP server is running..."
+	@echo ""
+	@if ! curl -s --max-time 2 $(MCP_URL)/health >/dev/null 2>&1; then \
+		echo "MCP server not running. Starting it in background..."; \
+		$(VENV_PY) -m matrixsh.mcp_server --host $(MCP_HOST) --port $(MCP_PORT) & \
+		MCP_PID=$$!; \
+		echo "MCP server PID: $$MCP_PID"; \
+		echo "Waiting for MCP server to start..."; \
+		sleep 3; \
+		if ! curl -s --max-time 2 $(MCP_URL)/health >/dev/null 2>&1; then \
+			echo ""; \
+			echo "$(WARN) MCP server failed to start automatically."; \
+			echo "Please start it manually in another terminal:"; \
+			echo "  make mcp-server-http"; \
+			echo ""; \
+			exit 1; \
+		fi; \
+	fi
+	@echo ""
+	@echo "$(OK) MCP server is running"
+	@echo ""
+	@$(VENV_PY) -m matrixsh.mcp_register --url $(MCP_SSE_URL)
 endif
 
 # -----------------------------
