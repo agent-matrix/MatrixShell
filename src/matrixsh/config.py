@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
+from .urls import api_base_url
+
 APP = "matrixsh"
 
 
@@ -57,6 +59,9 @@ class Settings:
         s.api_key = os.environ.get("MATRIXLLM_API_KEY", os.environ.get("MATRIXSH_API_KEY", s.api_key))
         s.token = os.environ.get("MATRIXSH_TOKEN", s.token)
         s.model = os.environ.get("MATRIXLLM_MODEL", os.environ.get("MATRIXSH_MODEL", s.model))
+
+        # Normalize to OpenAI-compatible base URL that ends with /v1
+        s.base_url = api_base_url(s.base_url)
 
         return s
 

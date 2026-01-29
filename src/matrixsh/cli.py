@@ -14,7 +14,7 @@ from .gateway import (
     is_local_base_url,
     probe_health,
     start_matrixllm_pairing,
-    wait_for_health,
+    wait_for_health_or_exit,
 )
 from .history import append_history, load_recent
 from .install import run_install
@@ -22,6 +22,7 @@ from .llm import MatrixLLM, UnauthorizedError
 from .pair import get_pair_info, submit_pair_code
 from .safety import denylist_match, is_command_not_found, is_no, is_yes, looks_like_natural_language
 from .shell import detect_default_mode, execute, handle_cd, list_files, os_name, prompt_string
+from .urls import api_base_url
 
 console = Console()
 
@@ -80,7 +81,7 @@ def run_setup(url: str | None, model: str | None, port: int | None) -> int:
     s = Settings.load()
 
     if url:
-        s.base_url = url
+        s.base_url = api_base_url(url)
     if model:
         s.model = model
 
@@ -110,9 +111,21 @@ def run_setup(url: str | None, model: str | None, port: int | None) -> int:
     parsed_port = port or 11435
     gw = start_matrixllm_pairing(base_url=s.base_url, model=s.model, host="127.0.0.1", port=parsed_port)
 
-    if not wait_for_health(s.base_url, total_timeout_s=25.0):
-        console.print("[red]MatrixLLM did not become healthy in time.[/red]")
-        console.print("Check MatrixLLM output above for errors.")
+    # Newer MatrixLLM versions may install/start Ollama and pull models *before* the
+    # HTTP server binds the port. Give it time, but fail early if the process exits.
+    ok, err = wait_for_health_or_exit(
+        base_url=s.base_url,
+        proc=gw.proc,
+        total_timeout_s=float(os.environ.get("MATRIXSH_SETUP_TIMEOUT_S", "180")),
+        log_lines=gw.log_lines,
+    )
+    if not ok:
+        if err:
+            console.print(Panel(Text(err), title="MatrixLLM failed to start", border_style="red"))
+        else:
+            console.print("[red]MatrixLLM did not become healthy in time.[/red]")
+            console.print("It may still be downloading/installing dependencies.")
+            console.print("Try again, or set MATRIXSH_SETUP_TIMEOUT_S=600 for slow first runs.")
         return 2
 
     console.print("[green]MatrixLLM is running (pairing mode).[/green]")
@@ -155,7 +168,7 @@ def main() -> None:
 
     settings = Settings.load()
     if args.url:
-        settings.base_url = args.url
+        settings.base_url = api_base_url(args.url)
     if args.model:
         settings.model = args.model
     if args.key:

@@ -5,6 +5,8 @@ from typing import Optional
 
 import requests
 
+from .urls import root_url
+
 
 @dataclass
 class PairInfo:
@@ -15,11 +17,11 @@ class PairInfo:
 
 
 def _pair_info_url(base_url: str) -> str:
-    return base_url.replace("/v1", "").rstrip("/") + "/pair/info"
+    return root_url(base_url) + "/pair/info"
 
 
 def _pair_submit_url(base_url: str) -> str:
-    return base_url.replace("/v1", "").rstrip("/") + "/pair"
+    return root_url(base_url) + "/pair"
 
 
 def get_pair_info(base_url: str) -> Optional[PairInfo]:

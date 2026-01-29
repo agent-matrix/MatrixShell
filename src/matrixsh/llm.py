@@ -6,6 +6,8 @@ from typing import Dict, Iterator, Literal, Optional
 
 import requests
 
+from .urls import api_base_url, root_url
+
 Risk = Literal["low", "medium", "high"]
 
 
@@ -22,7 +24,8 @@ class Suggestion:
 
 class MatrixLLM:
     def __init__(self, base_url: str, api_key: str, token: str = "", timeout_s: int = 120):
-        self.base_url = base_url.rstrip("/")
+        # Normalize so chat endpoints always live under /v1
+        self.base_url = api_base_url(base_url).rstrip("/")
         self.api_key = api_key
         self.token = token
         self.timeout_s = timeout_s
@@ -39,7 +42,7 @@ class MatrixLLM:
 
     def health(self) -> bool:
         try:
-            url = self.base_url.replace("/v1", "") + "/health"
+            url = root_url(self.base_url) + "/health"
             r = requests.get(url, timeout=8)
             return r.status_code == 200
         except Exception:

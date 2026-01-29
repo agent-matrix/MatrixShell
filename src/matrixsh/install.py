@@ -6,6 +6,7 @@ from rich.console import Console
 
 from .config import Settings
 from .llm import MatrixLLM
+from .urls import root_url
 
 console = Console()
 
@@ -42,5 +43,5 @@ def run_install(url: Optional[str], model: Optional[str], key: Optional[str], to
 
     console.print("[yellow]⚠ Gateway health check FAILED[/yellow]")
     console.print("Make sure MatrixLLM is running and reachable.")
-    console.print(f"Tried: {s.base_url.replace('/v1','')}/health")
+    console.print(f"Tried: {root_url(s.base_url)}/health")
     return 2
