@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
-from typing import Dict, Iterator, Literal, Optional
+from dataclasses import dataclass, field
+from typing import Any, Dict, Iterator, List, Literal, Optional
 
 import requests
 
@@ -14,10 +14,33 @@ class UnauthorizedError(RuntimeError):
 
 
 @dataclass
+class ToolCallRequest:
+    """A request to call a tool."""
+    tool_name: str
+    namespace: str
+    arguments: Dict[str, Any] = field(default_factory=dict)
+    description: str = ""
+
+    @property
+    def full_name(self) -> str:
+        return f"{self.namespace}.{self.tool_name}"
+
+
+@dataclass
 class Suggestion:
     explanation: str
     command: str
     risk: Risk
+
+
+@dataclass
+class ToolAwareSuggestion:
+    """Suggestion that may include tool calls."""
+    explanation: str
+    command: str = ""
+    risk: Risk = "low"
+    tool_calls: List[ToolCallRequest] = field(default_factory=list)
+    use_tools: bool = False
 
 
 class MatrixLLM:
@@ -157,3 +180,115 @@ class MatrixLLM:
             return Suggestion(explanation=explanation, command=command, risk=risk)  # type: ignore[arg-type]
         except Exception as e:
             raise RuntimeError(f"Model returned invalid JSON: {e}\nRaw:\n{content}")
+
+    def suggest_with_tools(
+        self,
+        *,
+        model: str,
+        os_name: str,
+        shell_mode: str,
+        cwd: str,
+        files: list[str],
+        user_input: str,
+        available_tools: list[dict],
+    ) -> ToolAwareSuggestion:
+        """Get a suggestion that may include tool calls.
+
+        When tools are available, the LLM can choose to:
+        1. Suggest a shell command (traditional behavior)
+        2. Suggest using one or more tools from the available tools list
+        """
+        # Build tool descriptions for the prompt
+        tool_descriptions = []
+        for tool in available_tools:
+            ns = tool.get("namespace", "")
+            name = tool.get("name", "")
+            desc = tool.get("description", "")
+            schema = tool.get("input_schema", {})
+
+            tool_desc = f"- {ns}.{name}: {desc}"
+            if schema and schema.get("properties"):
+                params = list(schema["properties"].keys())
+                tool_desc += f" (params: {', '.join(params)})"
+            tool_descriptions.append(tool_desc)
+
+        tools_section = "\n".join(tool_descriptions) if tool_descriptions else "No tools available"
+
+        system = f"""You are a terminal assistant with access to tools.
+
+AVAILABLE TOOLS:
+{tools_section}
+
+Return ONLY valid JSON with these fields:
+- explanation: What you're going to do
+- use_tools: boolean, true if you'll use tools
+- tool_calls: array of tool calls (if use_tools is true)
+  Each tool call has: namespace, tool_name, arguments, description
+- command: shell command (if use_tools is false)
+- risk: "low", "medium", or "high"
+
+RULES:
+- Use tools when they match the user's request better than shell commands
+- For file operations (find large files, scan directories, etc.), prefer tools if available
+- If no suitable tool exists, fall back to shell commands
+- Use the user's language for explanation
+- Generate commands appropriate to OS + shell
+- If command deletes/moves/overwrites, modifies system settings: risk=high
+
+EXAMPLE (using tool):
+{{"explanation": "I'll use the storagepilot tool to find large files", "use_tools": true, "tool_calls": [{{"namespace": "catalog.storagepilot", "tool_name": "find_large_files", "arguments": {{"path": "/home/user", "min_size_mb": 100}}, "description": "Finding files larger than 100MB"}}], "risk": "low"}}
+
+EXAMPLE (shell command):
+{{"explanation": "I'll list the files in the current directory", "use_tools": false, "command": "ls -la", "risk": "low"}}
+"""
+
+        user = {
+            "os": os_name,
+            "shell": shell_mode,
+            "cwd": cwd,
+            "files": files[:100],
+            "input": user_input,
+        }
+
+        messages = [
+            {"role": "system", "content": system},
+            {"role": "user", "content": json.dumps(user, ensure_ascii=False)},
+        ]
+
+        content = self.chat_text(model=model, messages=messages, temperature=0.2)
+
+        try:
+            obj = json.loads(content)
+            explanation = str(obj.get("explanation", "")).strip()
+            use_tools = bool(obj.get("use_tools", False))
+            command = str(obj.get("command", "")).strip()
+            risk = obj.get("risk", "low")
+
+            if risk not in ("low", "medium", "high"):
+                risk = "low"
+
+            tool_calls = []
+            if use_tools and obj.get("tool_calls"):
+                for tc in obj["tool_calls"]:
+                    tool_calls.append(ToolCallRequest(
+                        namespace=tc.get("namespace", ""),
+                        tool_name=tc.get("tool_name", ""),
+                        arguments=tc.get("arguments", {}),
+                        description=tc.get("description", ""),
+                    ))
+
+            return ToolAwareSuggestion(
+                explanation=explanation,
+                command=command,
+                risk=risk,
+                tool_calls=tool_calls,
+                use_tools=use_tools,
+            )
+        except Exception as e:
+            # Fall back to regular suggestion behavior
+            return ToolAwareSuggestion(
+                explanation=f"Could not parse response: {e}",
+                command="",
+                risk="high",
+                use_tools=False,
+            )

@@ -4,11 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "matrixsh"
-version = "0.1.0"
+version = "0.1.1"
 description = "MatrixShell: AI-augmented shell wrapper powered by MatrixLLM"
 readme = "README.md"
 license = "Apache-2.0"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 authors = [
   { name = "Ruslan Magana Vsevolodovna", email = "contact@ruslanmv.com" }
 ]
@@ -31,7 +31,6 @@ classifiers = [
   "Intended Audience :: System Administrators",
   "Operating System :: OS Independent",
   "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
@@ -43,7 +42,20 @@ classifiers = [
 ]
 dependencies = [
   "requests>=2.31.0",
-  "rich>=13.7.0"
+  "rich>=13.7.0",
+  "prompt_toolkit>=3.0.0"
+]
+
+[project.optional-dependencies]
+# MCP is optional for normal users (matrixsh runs embedded tools without any MCP server).
+# Install with: pip install "matrixsh[mcp]"
+mcp = [
+  "mcp>=1.7.1"
+]
+dev = [
+  "pytest>=7.0",
+  "pytest-asyncio>=0.21",
+  "mcp>=1.7.1"
 ]
 
 [project.urls]
@@ -55,9 +67,25 @@ Changelog = "https://github.com/agent-matrix/MatrixShell/releases"
 
 [project.scripts]
 matrixsh = "matrixsh.cli:main"
+matrixsh-mcp = "matrixsh.mcp.server:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
 matrixsh = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = ["E501"]

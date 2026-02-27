@@ -14,6 +14,7 @@
 #   make venv             (uv venv / python -m venv)
 #   make install          (uv pip install -e . / pip install -e .)
 #   make install-dev      (adds dev tools like pyinstaller)
+#   make test
 #   make run
 #   make build-exe        (Windows PyInstaller onefile exe)
 #   make build-linux      (Linux deb/rpm via fpm helper script)
@@ -37,6 +38,7 @@ UV ?= uv
 PYTHON ?= python
 PYTHON3 ?= python3
 PIPX ?= pipx
+CURL ?= curl
 
 # Choose python executable
 ifeq ($(IS_WINDOWS),1)
@@ -83,34 +85,66 @@ endif
 # -----------------------------
 .PHONY: help
 help:
-	@echo "MatrixShell (matrixsh) - Makefile (uv-first)"
-	@echo ""
-	@echo "Usage:"
-	@echo "  make <target>"
-	@echo ""
-	@echo "Core:"
-	@echo "  uv-install        Install uv (best effort)."
-	@echo "  venv              Create .venv (uv venv preferred)."
-	@echo "  install           Install editable into .venv (uv pip preferred)."
-	@echo "  install-dev       Install dev tools (pyinstaller/build/twine)."
-	@echo "  run               Run matrixsh from .venv."
-	@echo ""
-	@echo "User install:"
-	@echo "  install-cli       pipx install . (end-user)."
-	@echo ""
-	@echo "Build / Packaging:"
-	@echo "  build             Build wheel and sdist (python -m build)."
-	@echo "  build-exe         Windows: build dist\\matrixsh.exe using PyInstaller."
-	@echo "  build-linux       Linux: build .deb/.rpm using packaging/linux/build_linux_packages.sh (fpm)."
-	@echo ""
-	@echo "Housekeeping:"
-	@echo "  clean             Remove build artifacts."
-	@echo "  clean-all         Also remove .venv."
-	@echo ""
-	@echo "Detected:"
-	@echo "  OS: $(if $(filter 1,$(IS_WINDOWS)),Windows,Unix-like)"
-	@echo "  Python: $(PY)"
-	@echo "  uv available: $(HAVE_UV)"
+ifeq ($(IS_WINDOWS),1)
+	@echo.
+	@echo MatrixShell (matrixsh) - AI shell + MCP tools
+	@echo.
+	@echo [Core]
+	@echo   make venv           Create .venv (uv preferred)
+	@echo   make install        Install editable into .venv
+	@echo   make install-dev    Install dev tools (pyinstaller/build/twine)
+	@echo   make run            Start interactive MatrixShell
+	@echo.
+	@echo [Context Forge (MCP Catalog)]
+	@echo   matrixsh login --url http://localhost:4444 --token YOUR_TOKEN
+	@echo   matrixsh sync       Sync catalog servers to plugins
+	@echo   matrixsh tools      List catalog tools
+	@echo   matrixsh servers    List catalog servers
+	@echo   matrixsh plugins    List installed plugins
+	@echo.
+	@echo [User Install]
+	@echo   make install-cli    pipx install . (end-user)
+	@echo.
+	@echo [Build / Packaging]
+	@echo   make build          Build wheel and sdist
+	@echo   make build-exe      Windows PyInstaller build
+	@echo   make build-linux    Linux .deb/.rpm via fpm
+	@echo.
+	@echo [Housekeeping]
+	@echo   make clean          Remove build artifacts
+	@echo   make clean-all      Also remove .venv
+	@echo.
+	@echo [Detected]
+	@echo   OS: Windows
+	@echo   Python: $(PY)
+	@echo   uv available: $(HAVE_UV)
+else
+	@printf "\n\033[1mMatrixShell (matrixsh)\033[0m - AI shell + MCP tools\n\n"
+	@printf "\033[1mCore\033[0m\n"
+	@printf "  make venv           Create .venv (uv preferred)\n"
+	@printf "  make install        Install editable into .venv\n"
+	@printf "  make install-dev    Install dev tools (pyinstaller/build/twine)\n"
+	@printf "  make run            Start interactive MatrixShell\n\n"
+	@printf "\033[1mContext Forge (MCP Catalog)\033[0m\n"
+	@printf "  matrixsh login --url http://localhost:4444 --token <JWT>\n"
+	@printf "  matrixsh sync       Sync catalog servers to plugins\n"
+	@printf "  matrixsh tools      List catalog tools\n"
+	@printf "  matrixsh servers    List catalog servers\n"
+	@printf "  matrixsh plugins    List installed plugins\n\n"
+	@printf "\033[1mUser Install\033[0m\n"
+	@printf "  make install-cli    pipx install . (end-user)\n\n"
+	@printf "\033[1mBuild / Packaging\033[0m\n"
+	@printf "  make build          Build wheel and sdist\n"
+	@printf "  make build-exe      Windows PyInstaller build\n"
+	@printf "  make build-linux    Linux .deb/.rpm via fpm\n\n"
+	@printf "\033[1mHousekeeping\033[0m\n"
+	@printf "  make clean          Remove build artifacts\n"
+	@printf "  make clean-all      Also remove .venv\n\n"
+	@printf "\033[1mDetected\033[0m\n"
+	@printf "  OS: %s\n" "Unix-like"
+	@printf "  Python: %s\n" "$(PY)"
+	@printf "  uv available: %s\n\n" "$(HAVE_UV)"
+endif
 
 # -----------------------------
 # Install uv (best effort)
@@ -124,9 +158,43 @@ ifeq ($(IS_WINDOWS),1)
 else
 	@echo "Installing uv on Unix-like (best effort)..."
 	@echo "If this fails, install uv manually: https://astral.sh/uv"
-	@curl -LsSf https://astral.sh/uv/install.sh | sh || (echo "$(WARN) uv install failed"; exit 0)
+	@$(CURL) -LsSf https://astral.sh/uv/install.sh | sh || (echo "$(WARN) uv install failed"; exit 0)
 endif
 	@echo "$(OK) uv install attempted. Restart your shell if needed."
+
+# -----------------------------
+# Ensure pip exists inside venv (fixes: "No module named pip")
+# -----------------------------
+.PHONY: ensure-pip
+ensure-pip:
+ifeq ($(IS_WINDOWS),1)
+	@echo "Ensuring pip is available in venv..."
+	@$(VENV_PY) -c "import pip" >NUL 2>&1 || ( \
+		echo "pip missing; bootstrapping with ensurepip..." && \
+		$(VENV_PY) -m ensurepip --upgrade >NUL 2>&1 \
+	)
+	@$(VENV_PY) -c "import pip" >NUL 2>&1 || ( \
+		echo "$(WARN) ensurepip failed; trying get-pip.py..." && \
+		powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://bootstrap.pypa.io/get-pip.py -OutFile get-pip.py" && \
+		$(VENV_PY) get-pip.py && \
+		del get-pip.py \
+	)
+	@$(VENV_PY) -m pip --version >NUL 2>&1 || (echo "$(WARN) pip still missing in venv"; exit /b 1)
+else
+	@echo "Ensuring pip is available in venv..."
+	@$(VENV_PY) -c "import pip" >/dev/null 2>&1 || ( \
+		echo "pip missing; bootstrapping with ensurepip..." && \
+		$(VENV_PY) -m ensurepip --upgrade >/dev/null 2>&1 || true; \
+	)
+	@$(VENV_PY) -c "import pip" >/dev/null 2>&1 || ( \
+		echo "$(WARN) ensurepip failed; trying get-pip.py..." && \
+		$(CURL) -LsSf https://bootstrap.pypa.io/get-pip.py -o /tmp/get-pip.py && \
+		$(VENV_PY) /tmp/get-pip.py && \
+		rm -f /tmp/get-pip.py; \
+	)
+	@$(VENV_PY) -m pip --version >/dev/null 2>&1 || (echo "$(WARN) pip still missing in venv"; exit 1)
+endif
+	@echo "$(OK) pip is available"
 
 # -----------------------------
 # Virtualenv
@@ -143,6 +211,7 @@ ifeq ($(IS_WINDOWS),1)
 			$(PY) -m venv "$(VENV_DIR)" \
 		) \
 	)
+	@$(MAKE) ensure-pip
 	@$(VENV_PY) -m pip install -U pip setuptools wheel
 else
 	@if [ -x "$(VENV_PY)" ]; then echo "$(OK) venv exists"; else \
@@ -154,6 +223,7 @@ else
 			$(PY) -m venv "$(VENV_DIR)"; \
 		fi; \
 	fi
+	@$(MAKE) ensure-pip
 	@$(VENV_PY) -m pip install -U pip setuptools wheel
 endif
 
@@ -269,6 +339,31 @@ else
 		exit 1; \
 	fi
 endif
+
+# -----------------------------
+# Test
+# -----------------------------
+.PHONY: test
+test: install
+ifeq ($(IS_WINDOWS),1)
+	@echo "Running tests..."
+	@if "$(HAVE_UV)"=="1" ( \
+		$(UV) pip install -e ".[dev]" && \
+		$(VENV_PY) -m pytest tests/ -v \
+	) else ( \
+		$(VENV_PY) -m pip install -e ".[dev]" && \
+		$(VENV_PY) -m pytest tests/ -v \
+	)
+else
+	@echo "Running tests..."
+	@if [ "$(HAVE_UV)" = "1" ]; then \
+		$(UV) pip install -e ".[dev]"; \
+	else \
+		$(VENV_PY) -m pip install -e ".[dev]"; \
+	fi
+	@$(VENV_PY) -m pytest tests/ -v
+endif
+	@echo "$(OK) tests passed"
 
 # -----------------------------
 # Clean
