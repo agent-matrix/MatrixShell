@@ -1,0 +1,1 @@
+"""MatrixShell test suite."""

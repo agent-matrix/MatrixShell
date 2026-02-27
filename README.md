@@ -574,8 +574,104 @@ The command is executed safely.
 
 ---
 
+## New in v0.1.1: MCP Server Catalog & Plugin System
+
+MatrixShell now supports connecting to external MCP (Model Context Protocol) servers through a powerful plugin system and catalog integration.
+
+### MCP Server Catalog
+
+Connect to an MCP server catalog (like [ContextForge](https://github.com/IBM/mcp-context-forge)) to discover and use external tools:
+
+```bash
+# Login to a catalog
+matrixsh login --url http://localhost:4444 --token <JWT>
+
+# List available servers
+matrixsh servers
+
+# Enable a server
+matrixsh enable github
+
+# List all tools from enabled servers
+matrixsh tools
+
+# Sync enabled servers to local plugins
+matrixsh sync
+
+# Check status
+matrixsh status
+```
+
+### Plugin System
+
+Manage external MCP servers as plugins:
+
+```bash
+# List configured plugins
+matrixsh plugins
+
+# Add a plugin manually
+matrixsh plugin add --id github --name "GitHub MCP" \
+  --transport streamable-http \
+  --url http://localhost:4444/servers/github/mcp
+
+# Enable/disable plugins
+matrixsh plugin enable github
+matrixsh plugin disable github
+
+# Remove a plugin
+matrixsh plugin remove github
+```
+
+### Catalog Commands Reference
+
+| Command | Description |
+|---------|-------------|
+| `matrixsh login` | Login to MCP server catalog |
+| `matrixsh logout` | Logout from catalog |
+| `matrixsh status` | Show comprehensive status |
+| `matrixsh servers` | List catalog servers |
+| `matrixsh enable <id>` | Enable a catalog server |
+| `matrixsh disable <id>` | Disable a catalog server |
+| `matrixsh tools` | List available tools |
+| `matrixsh sync` | Sync servers to plugins.json |
+| `matrixsh unsync` | Remove catalog-synced plugins |
+| `matrixsh plugins` | List all configured plugins |
+
+### MCP Server Mode (Power Users)
+
+Expose MatrixShell's built-in tools via MCP for use by other AI agents:
+
+```bash
+# Start MCP server (stdio transport)
+matrixsh --serve
+
+# Start MCP server (HTTP transport)
+matrixsh --serve --serve-transport streamable-http
+```
+
+Install MCP support:
+
+```bash
+pip install "matrixsh[mcp]"
+```
+
+### Transport Types
+
+MatrixShell supports multiple MCP transport types:
+
+| Transport | Description |
+|-----------|-------------|
+| `stdio` | Standard I/O (subprocess) |
+| `streamable-http` | MCP JSON-RPC over HTTP (ContextForge compatible) |
+| `http` | Legacy HTTP endpoints |
+
+---
+
 ## Documentation
 
+- [Catalog Guide](docs/CATALOG_GUIDE.md) — Connect to MCP server catalogs
+- [MCP Server Guide](docs/MCP_SERVER_GUIDE.md) — Expose tools via MCP
 - [FAQ](docs/FAQ.md) — Frequently asked questions
 - [Demo Guide](docs/DEMO.md) — How to record demos
 
